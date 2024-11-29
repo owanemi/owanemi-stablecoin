@@ -34,6 +34,7 @@ contract OSCEngine is ReentrancyGuard {
     error OSCEngine__TransferFailed();
     error OSCEngine__UserBreaksHealthFactor(uint256 healthFactor);
     error OSCEngine__MintFailed();
+    error OSCEngine__HealthFactorOk();
 
     /*//////////////////////////////////////////////////////////////
                                STATE VARIABLES
@@ -42,7 +43,8 @@ contract OSCEngine is ReentrancyGuard {
     uint256 private constant DECIMAL_PRICE_PRECISION = 1e18;
     uint256 private constant LIQUIDATION_THRESHOLD = 50; // this means u need to be 200% overcollateralized
     uint256 private constant LIQUIDATION_PRECISION = 100;
-    uint256 private constant MIN_HEALTH_FACTOR = 1;
+    uint256 private constant MIN_HEALTH_FACTOR = 1e18;
+    uint256 private constant LIQUIDATION_BONUS = 100;
 
     OwanemiStableCoin private immutable i_osc;
 
@@ -89,6 +91,12 @@ contract OSCEngine is ReentrancyGuard {
             s_collateralTokens.push(tokenAddresses[i]);
         }
         i_osc = OwanemiStableCoin(oscAddress);
+    }
+
+    function getTokenAmountFromUsd(address token, uint256 usdAmountInWei) public view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
+        (, int256 price,,,) = priceFeed.latestRoundData();
+        return (usdAmountInWei * DECIMAL_PRICE_PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION);
     }
 
     function depositCollateralAndMintOsc(
@@ -170,7 +178,21 @@ contract OSCEngine is ReentrancyGuard {
         i_osc.burn(amount);
     }
 
-    function liquidate() public view {}
+    function liquidate(address collateral, address user, uint256 debtToCover)
+        public
+        moreThanZero(debtToCover)
+        nonReentrant
+    {
+        // we check the health factor of the user
+        uint256 startingHealthFactor = _healthFactor(user);
+        if (startingHealthFactor >= MIN_HEALTH_FACTOR) {
+            revert OSCEngine__HealthFactorOk();
+        }
+        // we burn thier OSC "Debt" and remove their collateral
+        uint256 tokenAmountFromDebtCovered = getTokenAmountFromUsd(collateral, debtToCover);
+
+        // we give the liquidator 10% of the
+    }
 
     function getHealthFactor() external view {}
 
