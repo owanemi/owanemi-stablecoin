@@ -8,7 +8,6 @@ import {OSCEngine} from "../../src/OSCEngine.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {ERC20Mock} from "lib/openzeppelin-contracts/contracts/mocks/ERC20Mock.sol";
 
-
 contract OSCEngineTest is Test {
     DeployOSCEngine deployer;
     OwanemiStableCoin osc;
@@ -24,7 +23,7 @@ contract OSCEngineTest is Test {
     function setUp() public {
         deployer = new DeployOSCEngine();
         (osc, engine, config) = deployer.run();
-        (ethUsdPriceFeed,,weth,,) = config.activeNetworkConfig();
+        (ethUsdPriceFeed,, weth,,) = config.activeNetworkConfig();
 
         ERC20Mock(weth).mint(USER, STARTING_ERC_20_BALANCE);
     }
@@ -38,11 +37,11 @@ contract OSCEngineTest is Test {
         uint256 actualUsd = engine.getUsdValue(weth, ethAmount);
 
         assertEq(expectedUsd, actualUsd);
-    }  
+    }
 
     /*//////////////////////////////////////////////////////////////
                               depositCollateral TESTS
-    //////////////////////////////////////////////////////////////*/  
+    //////////////////////////////////////////////////////////////*/
     function testRevertsIfCollateralZero() public {
         vm.startPrank(USER);
         ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
@@ -50,5 +49,5 @@ contract OSCEngineTest is Test {
         vm.expectRevert(OSCEngine.OSCEngine__collateralAmountMustBeGreaterThanZero.selector);
         engine.depositCollateral(weth, 0);
         vm.stopPrank();
-    }   
+    }
 }

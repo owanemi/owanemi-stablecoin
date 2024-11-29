@@ -57,6 +57,7 @@ contract OSCEngine is ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
+    event CollateralReedemed(address indexed user, uint256 indexed amount, address indexed token);
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -76,7 +77,7 @@ contract OSCEngine is ReentrancyGuard {
     }
 
     /*//////////////////////////////////////////////////////////////
-                              EXTERNAL FUNCTIONS
+                    EXTERNAL & PUBLIC VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     constructor(address[] memory tokenAddresses, address[] memory priceFeedAddresses, address oscAddress) {
         if (tokenAddresses.length != priceFeedAddresses.length) {
@@ -90,7 +91,11 @@ contract OSCEngine is ReentrancyGuard {
         i_osc = OwanemiStableCoin(oscAddress);
     }
 
-    function depositCollateralAndMintOsc(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountOscToMint) public view {
+    function depositCollateralAndMintOsc(
+        address tokenCollateralAddress,
+        uint256 amountCollateral,
+        uint256 amountOscToMint
+    ) public view {
         depositCollateral(tokenCollateralAddress, amountCollateral);
         mintOsc(amountOscToMint);
     }
@@ -129,13 +134,41 @@ contract OSCEngine is ReentrancyGuard {
         if (!minted) {
             revert OSCEngine__MintFailed();
         }
+        _revertIfHealthBalanceIsBroken(msg.sender);
     }
 
-    function redeeemCollateralForOsc() public view {}
+    function redeemCollateralForOsc(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountOscToBurn)
+        public
+    {
+        burnOsc(amountCollateral);
+        redeemCollateral(tokenCollateralAddress, amountCollateral);
+    }
 
-    function redeemCollateral() public view {}
+    function redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral)
+        public
+        moreThanZero(amountCollateral)
+        nonReentrant
+    {
+        s_collateralDeposited[msg.sender][tokenCollateralAddress] -= amountCollateral;
+        emit CollateralReedemed(msg.sender, amountCollateral, tokenCollateralAddress);
 
-    function burnOsc() public view {}
+        bool success = IERC20(tokenCollateralAddress).transfer(msg.sender, amountCollateral);
+
+        if (!success) {
+            revert OSCEngine__TransferFailed();
+        }
+        _revertIfHealthBalanceIsBroken(msg.sender);
+    }
+
+    function burnOsc(uint256 amount) public moreThanZero(amount) {
+        s_mintedOscBalance[msg.sender] -= amount;
+        bool success = i_osc.transferFrom(msg.sender, address(this), amount);
+
+        if (!success) {
+            revert OSCEngine__TransferFailed();
+        }
+        i_osc.burn(amount);
+    }
 
     function liquidate() public view {}
 
