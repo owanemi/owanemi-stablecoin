@@ -13,7 +13,7 @@ contract HelperConfig is Script {
         address wbtcUsdPriceFeed;
         address weth;
         address wbtc;
-        address deployerKey;
+        uint256 deployerKey;
     }
 
     uint8 public constant DECIMALS = 8;
@@ -39,7 +39,7 @@ contract HelperConfig is Script {
         });
     }
 
-    function getOrCreateAnvilConfig() public view returns (NetworkConfig memory) {
+    function getOrCreateAnvilConfig() public returns (NetworkConfig memory) {
         if (activeNetworkConfig.wethUsdPriceFeed != address(0)) {
             return activeNetworkConfig;
         }

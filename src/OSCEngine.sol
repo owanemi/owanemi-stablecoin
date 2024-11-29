@@ -90,7 +90,10 @@ contract OSCEngine is ReentrancyGuard {
         i_osc = OwanemiStableCoin(oscAddress);
     }
 
-    function depositCollateralAndMintOsc() public view {}
+    function depositCollateralAndMintOsc(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountOscToMint) public view {
+        depositCollateral(tokenCollateralAddress, amountCollateral);
+        mintOsc(amountOscToMint);
+    }
 
     /**
      * @notice follows CEI -> checks, effects, integrations
@@ -98,7 +101,7 @@ contract OSCEngine is ReentrancyGuard {
      * @param amountCollateral is the amount of collateral that is to be deposited
      */
     function depositCollateral(address tokenCollateralAddress, uint256 amountCollateral)
-        external
+        public
         moreThanZero(amountCollateral)
         isAllowedToken(tokenCollateralAddress)
         nonReentrant
@@ -119,7 +122,7 @@ contract OSCEngine is ReentrancyGuard {
      * @notice to mint osc, we check if collateral value > OSC amount
      * @notice they must have more collateral value than the minimum threshhold
      */
-    function mintOsc(uint256 oscAmountToMint) external moreThanZero(oscAmountToMint) nonReentrant {
+    function mintOsc(uint256 oscAmountToMint) public moreThanZero(oscAmountToMint) nonReentrant {
         s_mintedOscBalance[msg.sender] += oscAmountToMint;
         _revertIfHealthBalanceIsBroken(msg.sender);
         bool minted = i_osc.mint(msg.sender, oscAmountToMint);
@@ -187,6 +190,6 @@ contract OSCEngine is ReentrancyGuard {
     function getUsdValue(address token, uint256 amount) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
         (, int256 price,,,) = priceFeed.latestRoundData();
-        return ((uint256(price) * ADDITIONAL_FEED_PRECISION) * DECIMAL_PRICE_PRECISION) / 1e18;
+        return ((uint256(price) * ADDITIONAL_FEED_PRECISION) * amount) / DECIMAL_PRICE_PRECISION;
     }
 }

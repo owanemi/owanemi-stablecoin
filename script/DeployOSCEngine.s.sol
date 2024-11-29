@@ -10,7 +10,7 @@ contract DeployOSCEngine is Script {
     address[] public tokenAddresses;
     address[] public priceFeedAddresses;
 
-    function run() external returns (OwanemiStableCoin, OSCEngine) {
+    function run() external returns (OwanemiStableCoin, OSCEngine, HelperConfig) {
         HelperConfig config = new HelperConfig();
 
         (address wethUsdPriceFeed, address wbtcUsdPriceFeed, address weth, address wbtc, uint256 deployerKey) =
@@ -26,6 +26,6 @@ contract DeployOSCEngine is Script {
 
         osc.transferOwnership(address(engine));
         vm.stopBroadcast();
-        return (osc, engine);
+        return (osc, engine, config);
     }
 }
