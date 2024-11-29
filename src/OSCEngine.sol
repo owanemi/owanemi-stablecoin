@@ -32,12 +32,17 @@ contract OSCEngine is ReentrancyGuard {
     error OSCEngine__unequalNumberOfTokenAddressAndPriceFeeds();
     error OSCEngine__tokenNotAllowed();
     error OSCEngine__TransferFailed();
+    error OSCEngine__UserBreaksHealthFactor(uint256 healthFactor);
+    error OSCEngine__MintFailed();
 
     /*//////////////////////////////////////////////////////////////
                                STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
     uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
     uint256 private constant DECIMAL_PRICE_PRECISION = 1e18;
+    uint256 private constant LIQUIDATION_THRESHOLD = 50; // this means u need to be 200% overcollateralized
+    uint256 private constant LIQUIDATION_PRECISION = 100;
+    uint256 private constant MIN_HEALTH_FACTOR = 1;
 
     OwanemiStableCoin private immutable i_osc;
 
@@ -114,8 +119,13 @@ contract OSCEngine is ReentrancyGuard {
      * @notice to mint osc, we check if collateral value > OSC amount
      * @notice they must have more collateral value than the minimum threshhold
      */
-    function mintOsc(uint256 oscAmountToMint) moreThanZero(oscAmountToMint) nonReentrant {
+    function mintOsc(uint256 oscAmountToMint) external moreThanZero(oscAmountToMint) nonReentrant {
         s_mintedOscBalance[msg.sender] += oscAmountToMint;
+        _revertIfHealthBalanceIsBroken(msg.sender);
+        bool minted = i_osc.mint(msg.sender, oscAmountToMint);
+        if (!minted) {
+            revert OSCEngine__MintFailed();
+        }
     }
 
     function redeeemCollateralForOsc() public view {}
@@ -134,22 +144,31 @@ contract OSCEngine is ReentrancyGuard {
     /**
      * @notice returns how close to liquidation a user is
      * if a user goes below 1, then they can get liquidated
-     * @param userAddress
      */
     function _getAccountInformation(address userAddress)
         private
         view
-        returns (uint256 totalOscMinted, uint256 collateralValueinUsd)
+        returns (uint256 totalOscMinted, uint256 collateralValueInUsd)
     {
         totalOscMinted = s_mintedOscBalance[msg.sender];
-        collateralValueinUsd = getAccountCollateralValue(userAddress);
+        collateralValueInUsd = getAccountCollateralValue(userAddress);
     }
 
-    function _healthFactor(address userAddress) internal view returns (uint256) {}
+    function _healthFactor(address userAddress) internal view returns (uint256) {
+        (uint256 totalOscMinted, uint256 collateralValueInUsd) = _getAccountInformation(userAddress);
+        uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_THRESHOLD;
+        return (collateralAdjustedForThreshold * DECIMAL_PRICE_PRECISION) / totalOscMinted;
+    }
 
+    /**
+     * @notice 1. check health factor(if they have enough collateral)
+     * @notice 2. revert if they dont
+     */
     function _revertIfHealthBalanceIsBroken(address userAddress) internal view {
-        // 1. check health factor(if they have enough collateral)
-        // 2. revert if they dont
+        uint256 userHealthFactor = _healthFactor(userAddress);
+        if (userHealthFactor < MIN_HEALTH_FACTOR) {
+            revert OSCEngine__UserBreaksHealthFactor(userHealthFactor);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -160,7 +179,7 @@ contract OSCEngine is ReentrancyGuard {
         for (uint256 i = 0; i < s_collateralTokens.length; i++) {
             address token = s_collateralTokens[i];
             uint256 amount = s_collateralDeposited[userAddress][token];
-            totalCollateralValueInUsd += getAccountCollateralValue(token, amount);
+            totalCollateralValueInUsd += getUsdValue(token, amount);
         }
         return totalCollateralValueInUsd;
     }
