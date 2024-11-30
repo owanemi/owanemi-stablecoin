@@ -14,6 +14,7 @@ contract OSCEngineTest is Test {
     OSCEngine engine;
     HelperConfig config;
     address ethUsdPriceFeed;
+    address btcUsdPriceFeed;
     address weth;
 
     address public USER = makeAddr("user");
@@ -23,9 +24,24 @@ contract OSCEngineTest is Test {
     function setUp() public {
         deployer = new DeployOSCEngine();
         (osc, engine, config) = deployer.run();
-        (ethUsdPriceFeed,, weth,,) = config.activeNetworkConfig();
+        (ethUsdPriceFeed, btcUsdPriceFeed, weth,,) = config.activeNetworkConfig();
 
         ERC20Mock(weth).mint(USER, STARTING_ERC_20_BALANCE);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           CONSTRUCTOR TESTS
+    //////////////////////////////////////////////////////////////*/
+    address[] public tokenAddresses;
+    address[] public priceFeedAddresses;
+    
+    function testRevertsIfTokenLengthDontMatchPriceFeed() public {
+        tokenAddresses.push(weth);
+        priceFeedAddresses.push(ethUsdPriceFeed);
+        priceFeedAddresses.push(btcUsdPriceFeed);
+
+        vm.expectRevert(OSCEngine.OSCEngine__unequalNumberOfTokenAddressAndPriceFeeds.selector);
+        new OSCEngine(tokenAddresses, priceFeedAddresses, address(osc));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -39,6 +55,14 @@ contract OSCEngineTest is Test {
         assertEq(expectedUsd, actualUsd);
     }
 
+    function testGetTokenAmountFromUsd() public view {
+        uint256 usdAmount = 100 ether;
+        uint256 expectedWeth = 0.05 ether;
+        uint256 actualWeth = engine.getTokenAmountFromUsd(weth, usdAmount);
+        assertEq(expectedWeth, actualWeth);
+
+    }
+
     /*//////////////////////////////////////////////////////////////
                               depositCollateral TESTS
     //////////////////////////////////////////////////////////////*/
@@ -49,5 +73,31 @@ contract OSCEngineTest is Test {
         vm.expectRevert(OSCEngine.OSCEngine__collateralAmountMustBeGreaterThanZero.selector);
         engine.depositCollateral(weth, 0);
         vm.stopPrank();
+    }
+
+    function testRevertsWithUnapprovedCollateral() public {
+        ERC20Mock randomToken = new ERC20Mock("RAND", "RAND", USER, AMOUNT_COLLATERAL);
+        vm.startPrank(USER);
+        vm.expectRevert(OSCEngine.OSCEngine__tokenNotAllowed.selector);
+        engine.depositCollateral(address(randomToken), AMOUNT_COLLATERAL);
+        vm.stopPrank();
+    }
+
+    modifier depositedCollateral() {
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
+        engine.depositCollateral(weth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+        _;
+    }
+
+    function testCanDepositCollateralAndGetAccountInfo() public depositedCollateral {
+        (uint256 totalOscMinted, uint256 collateralValueInUsd) = engine.getAccountInformation(USER);
+
+        uint256 expectedTotalOscMinted = 0;
+        uint256 expectedDepositAmount = engine.getTokenAmountFromUsd(weth, collateralValueInUsd);
+
+        assertEq(totalOscMinted, expectedTotalOscMinted);
+        assertEq(AMOUNT_COLLATERAL, expectedDepositAmount);
     }
 }

@@ -210,7 +210,11 @@ contract OSCEngine is ReentrancyGuard {
         return ((uint256(price) * ADDITIONAL_FEED_PRECISION) * amount) / DECIMAL_PRICE_PRECISION;
     }
 
-    function getHealthFactor() external view {}
+    function getAccountInformation(address user) external view returns (uint256 totalOScMinted, uint256 collateralValueInUsd) {
+        (totalOScMinted, collateralValueInUsd) = _getAccountInformation(user);
+        
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                      PRIVATE & INTERNAL FUNCTIONS
