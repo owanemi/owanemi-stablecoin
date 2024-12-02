@@ -11,6 +11,9 @@ import {ERC20Mock} from "lib/openzeppelin-contracts/contracts/mocks/ERC20Mock.so
 contract Handler is Test {
     OSCEngine engine;
     OwanemiStableCoin osc;
+    
+    ERC20Mock weth;
+    ERC20Mock wbtc;
 
     constructor(OSCEngine _engine, OwanemiStableCoin _osc) {
         engine = _engine;
@@ -22,6 +25,8 @@ contract Handler is Test {
     }
 
     function _getCollateralFromSeed() private view returns (ERC20Mock) {
-
+        if(collateralSeed % 2 == 0) {
+            return weth;
+        }
     }
 }
