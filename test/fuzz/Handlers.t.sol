@@ -15,18 +15,33 @@ contract Handler is Test {
     ERC20Mock weth;
     ERC20Mock wbtc;
 
+    uint256 MAX_DEPOSIT_AMOUNT = type(uint96).max;
+
     constructor(OSCEngine _engine, OwanemiStableCoin _osc) {
         engine = _engine;
         osc = _osc;
+
+        address[] memory collateralTokens = engine.getCollateralTokens();
+        weth = ERC20Mock(collateralTokens[0]);
+        wbtc = ERC20Mock(collateralTokens[1]);
     }
 
     function depositCollateral(uint256 collateralSeed, uint256 amountCollateral) public {
-        engine.depositCollateral(collateralSeed, amountCollateral);
+        ERC20Mock collateral = _getCollateralFromSeed(collateralSeed);
+        amountCollateral = bound(amountCollateral, 1, MAX_DEPOSIT_AMOUNT);
+
+        vm.startPrank(msg.sender);
+        collateral.mint(msg.sender, amountCollateral);
+        collateral.approve(address(engine), amountCollateral);
+        engine.depositCollateral(address(collateral), amountCollateral);
+        vm.stopPrank();
     }
 
-    function _getCollateralFromSeed() private view returns (ERC20Mock) {
+    // this will make sure a valid collateral is selected no matter what bcos the collateralSeed can take any no.
+    function _getCollateralFromSeed(uint256 collateralSeed) private view returns (ERC20Mock) {
         if(collateralSeed % 2 == 0) {
             return weth;
         }
+        return wbtc;
     }
 }
