@@ -312,7 +312,7 @@ contract OSCEngine is ReentrancyGuard {
     }
 
     function getCollateralBalanceOfUser(address user, address token) external view returns (uint256) {
-        return s_collateralDeposited[user][token];
+        return s_collateralDeposited[token][user];
     }
     function getCollateralTokenPriceFeed(address token) external view returns (address) {
         return s_priceFeeds[token];
