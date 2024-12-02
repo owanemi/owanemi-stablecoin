@@ -34,7 +34,7 @@ contract OSCEngineTest is Test {
     //////////////////////////////////////////////////////////////*/
     address[] public tokenAddresses;
     address[] public priceFeedAddresses;
-    
+
     function testRevertsIfTokenLengthDontMatchPriceFeed() public {
         tokenAddresses.push(weth);
         priceFeedAddresses.push(ethUsdPriceFeed);
@@ -60,7 +60,6 @@ contract OSCEngineTest is Test {
         uint256 expectedWeth = 0.05 ether;
         uint256 actualWeth = engine.getTokenAmountFromUsd(weth, usdAmount);
         assertEq(expectedWeth, actualWeth);
-
     }
 
     /*//////////////////////////////////////////////////////////////
