@@ -48,6 +48,23 @@ contract Handler is Test {
         engine.redeemCollateral(address(collateral), amountCollateral);
     }
 
+    function mintOsc(uint256 amount) public {
+        (uint256 totalOscMinted, uint256 collateralValueInUsd) = engine.getAccountInformation(msg.sender);
+
+        int256 maxOscToMint = int256((collateralValueInUsd / 2)) - int256(totalOscMinted);
+        if(maxOscToMint < 0) {
+            return;
+        }
+        // amount = bound(amount, 1, MAX_DEPOSIT_AMOUNT);
+        amount = bound(amount, 0, uint256(maxOscToMint));
+        if(amount == 0) {
+            return;
+        }
+        vm.startPrank(msg.sender);
+        engine.mintOsc(amount);
+        vm.stopPrank();
+    }
+
     // this will make sure a valid collateral is selected no matter what bcos the collateralSeed can take any no.
     function _getCollateralFromSeed(uint256 collateralSeed) private view returns (ERC20Mock) {
         if(collateralSeed % 2 == 0) {
