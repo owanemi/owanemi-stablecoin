@@ -6,6 +6,7 @@ import {ReentrancyGuard} from "lib/openzeppelin-contracts/contracts/security/Ree
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {AggregatorV3Interface} from
     "lib/chainlink-brownie-contracts/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import {OracleLib} from "./libraries/OracleLib.sol";
 
 /**
  * @title Engine for our decentralized stablecoin
@@ -36,6 +37,11 @@ contract OSCEngine is ReentrancyGuard {
     error OSCEngine__MintFailed();
     error OSCEngine__HealthFactorOk();
     error OSCEngine__HealthFactorNotImproved();
+
+    /*//////////////////////////////////////////////////////////////
+                                 TYPES
+    //////////////////////////////////////////////////////////////*/
+    using OracleLib for AggregatorV3Interface;
 
     /*//////////////////////////////////////////////////////////////
                                STATE VARIABLES
@@ -98,7 +104,7 @@ contract OSCEngine is ReentrancyGuard {
 
     function getTokenAmountFromUsd(address token, uint256 usdAmountInWei) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
-        (, int256 price,,,) = priceFeed.latestRoundData();
+        (, int256 price,,,) = priceFeed.stalePriceCheck();
         return (usdAmountInWei * DECIMAL_PRICE_PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION);
     }
 
@@ -279,7 +285,7 @@ contract OSCEngine is ReentrancyGuard {
                             GETTER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-     function getPrecision() external pure returns (uint256) {
+    function getPrecision() external pure returns (uint256) {
         return DECIMAL_PRICE_PRECISION;
     }
 
@@ -314,6 +320,7 @@ contract OSCEngine is ReentrancyGuard {
     function getCollateralBalanceOfUser(address user, address token) external view returns (uint256) {
         return s_collateralDeposited[token][user];
     }
+
     function getCollateralTokenPriceFeed(address token) external view returns (address) {
         return s_priceFeeds[token];
     }

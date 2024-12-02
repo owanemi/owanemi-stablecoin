@@ -37,16 +37,18 @@ contract Invariants is StdInvariant, Test {
         // get the value of all the collateral in the protocol
         // compare it to all the debt in the
         uint256 totalSupply = osc.totalSupply();
-        console.log("total supply is: ", totalSupply);
 
         uint256 totalWethDeposited = IERC20(weth).balanceOf(address(engine));
         uint256 totalWbtcDeposited = IERC20(wbtc).balanceOf(address(engine));
 
         uint256 wethUsdValue = engine.getUsdValue(weth, totalWethDeposited);
-        console.log("weth usd value is: ", wethUsdValue);
 
         uint256 wbtcUsdValue = engine.getUsdValue(wbtc, totalWbtcDeposited);
+
+        console.log("total supply is: ", totalSupply);
+        console.log("weth usd value is: ", wethUsdValue);
         console.log("wbtc usd value is: ", wbtcUsdValue);
+        console.log("Times mint is called: ", handler.timesMintIsCalled());
 
         assert(wethUsdValue + wbtcUsdValue >= totalSupply);
     }
